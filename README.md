@@ -1,37 +1,100 @@
-# NMIXX-AI 얼굴 인식 프로그램
+---
+marp: true
+theme: default
+class: lead
+---
 
-NMIXX 멤버들의 얼굴을 인식하고 분류하는 AI 프로그램입니다.
+# 얼굴 인식 기반 사진 분류  
+## MIXX AI
+(PyQt6 + face_recognition)
+30819 정찬영
 
-## 주요 기능
+---
 
-- NMIXX 멤버 얼굴 인식
-- 실시간 얼굴 검출 및 인식
-- GPU 가속 지원
-- 사용자 친화적인 GUI 인터페이스
+## 사용한 AI 모델
 
-## 시스템 요구사항
+- 라이브러리: `face_recognition`  
+- 내부 모델: **Dlib** 기반 **ResNet-34 CNN**  
+- 기능:
+  - 얼굴 검출 (`face_locations`)
+  - 얼굴 특징 벡터 추출 (`face_encodings`)
 
-- Windows 10 이상
-- NVIDIA GPU (선택사항)
+> 별도 모델 설계 없이도 고성능 얼굴 인식 기능 사용 가능
 
-## 설치 및 실행
+---
 
-1. Release 페이지에서 최신 버전을 다운로드합니다.
-2. 압축을 풀고 `NMIXX-AI.exe`를 실행합니다.
+## 주요 모듈 요약
 
-## 개발 환경 설정
+| 모듈 | 기능 |
+|------|------|
+| `face_recognition` | 얼굴 검출 및 특징 추출 |
+| `PyQt6` | GUI 제작 |
+| `Pillow`, `numpy` | 이미지 전처리 |
+| `pickle` | 얼굴 벡터 저장/불러오기 |
+| `concurrent.futures` | (예정) 병렬 처리 |
+| `torch` | GPU 사용 여부 판단 용도 |
 
-```bash
-# 가상환경 생성
-python -m venv venv
+---
+<!-- style: h1{padding-top: 20%} -->
+# AI 학습 방식
 
-# 가상환경 활성화
-.\venv\Scripts\activate
+---
+## 특징 추출
 
-# 의존성 설치
-pip install -r requirements.txt
+```python
+image = face_recognition.load_image_file(image_path)
+face_locations = face_recognition.face_locations(image, model="cnn")
+face_encodings = face_recognition.face_encodings(image, face_locations, num_jitters=2)
+```
+> 각 이미지에서 128차원의 벡터를 추출하여 저장함
+> 학습한 특징은 .pkl로 저장됨
+
+---
+
+# 실제 분류 과정
+
+---
+
+
+## 1. 대상 이미지에서 얼굴 검출 및 특징 추출
+```python
+image = face_recognition.load_image_file(target_path)
+locations = face_recognition.face_locations(image, model="cnn")
+encodings = face_recognition.face_encodings(image, locations)
 ```
 
-## 라이선스
+---
 
-MIT License
+## 2. 모든 학습된 사람과 거리 계산
+```python
+for name, known_encs in known_faces.items():
+    distances = face_recognition.face_distance(known_encs, target_encoding)
+    avg = sum(sorted(distances)[:3]) / 3
+```
+
+---
+
+## 3. 최솟값이 임계값보다 작으면 매칭 성공
+```python
+if best_avg_distance < 0.45:
+    분류 성공 → 해당 폴더로 복사
+else:
+    미확인 또는 단체사진으로 분류
+```
+
+---
+
+
+## 정리
+
+face_recognition은 CNN 기반 얼굴 검출 및 벡터 추출 기능 제공
+
+벡터 비교만으로 인물 매칭이 가능
+
+.pkl 캐싱으로 재학습 없이 빠른 분류 지원
+
+정확도: 93.33% (60개 중 56개 정답)
+
+---
+
+# 감사합니다
